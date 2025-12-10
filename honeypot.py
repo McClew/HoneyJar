@@ -34,6 +34,8 @@ SERVICE_BANNERS = {
     ),
 }
 
+app_config = {}
+
 def display_banner():
 	print(Fore.YELLOW + "+----------------------------+" + Style.RESET_ALL)
 	print(Fore.YELLOW + "|          HONEYPOT          |" + Style.RESET_ALL)
@@ -416,7 +418,8 @@ async def start_multiple_listeners(listen_pairs):
 	# Keep the main loop running until interrupted
 	await asyncio.gather(*tasks)
 
-def start_honeypot(app_config):		
+def start_honeypot():
+	global app_config	
 	listen_pairs = app_config.get('honeypot_listen_pairs')
 	
 	if not listen_pairs:
@@ -438,9 +441,10 @@ def start_honeypot(app_config):
 		print(Fore.RED + "[CRIT]" + Style.RESET_ALL + f" An unhandled error occurred during runtime: {error}")
 
 def main_menu():
+	global app_config
 	while True:
 		try:
-			app_config = Config.load_config() 
+			app_config = Config.load_config()
 		except SystemExit:
 			return
 
@@ -460,7 +464,7 @@ def main_menu():
 		choice = input("Select an option (1-4): ").strip()
 
 		if choice == '1':
-			start_honeypot(app_config)
+			start_honeypot()
 		elif choice == '2':
 			Config.edit_config()
 		elif choice == '3':
