@@ -17,21 +17,89 @@ CONFIG_REQUIRED_SECTIONS = {
 }
 
 SERVICE_BANNERS = {
-    "SSH": b"SSH-2.0-OpenSSH_8.9p1\r\n", 
-    "FTP": b"220 Microsoft FTP Service\r\n", 
-    "Telnet": b"Welcome to the Telnet Server.\r\n",
-    "HTTP": b"HTTP/1.1 200 OK\r\nServer: Apache\r\nContent-Length: 0\r\n\r\n",
-    "CustomBanner": b"220 Honeypot Service V1.0 Ready\r\n",
-    "MYSQL_HANDSHAKE": (
-        b'\x4a\x00\x00\x00\x0a'								# Packet Header (4 bytes) and Protocol Version (1 byte, 0x0a)
-        b'8.0.26-log\x00'									# Server Version String (Spoofed version)
-        b'\x01\x00\x00\x00'									# Connection ID
-        b'!\x13\x12\x0b\x00\x08\t\x03'						# Salt/Auth Data Part 1 (8 bytes)
-        b'\x00\xff\xf7\x08\x02\x00\x00\x00'					# Server Capabilities/Status
-        b'\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00'	# Reserved/Padding
-        b'P\x04I\x16\x1a\x17P\x01\x18\x01\x0f\x03'			# Salt/Auth Data Part 2 (12 bytes)
-        b'\x00'												# Auth Plugin name
-    ),
+	# --- FTP :21 ---
+	# Professional FTP Daemon (Common on Linux/Unix)
+	"FTP_ProFTPD_Linux": b"220 ProFTPD 1.3.6 Server (ProFTPD Default Installation) [::ffff:127.0.0.1]\r\n", 
+	# Microsoft FTP Service (Common on Windows Server) - Based on your original, slightly refined.
+	"FTP_Microsoft": b"220 Microsoft FTP Service\r\n",
+	# VSFTPD (Very Secure FTP Daemon) - Very common on Linux distributions
+	"FTP_VSFTPD": b"220 (vsFTPd 3.0.3)\r\n", 
+
+	# --- SSH :22 ---
+	# Up-to-date banner commonly found on recent Ubuntu/Debian systems
+	"SSH_Ubuntu_Current": b"SSH-2.0-OpenSSH_9.3p1 Debian-3ubuntu3.1\r\n", 
+	# A slightly older version, still common on enterprise/older systems
+	"SSH_CentOS_Older": b"SSH-2.0-OpenSSH_7.4\r\n",
+	# OpenSSH on Windows (often found on Windows Server 2016/2019/10/11 with the optional feature)
+	"SSH_Windows_OpenSSH": b"SSH-2.0-OpenSSH_7.7\r\n", 
+
+	# --- Telnet :23 ---
+	# Cisco IOS Telnet - Highly desirable for luring security researchers or specific attacks
+	"Telnet_Cisco_IOS": b"\r\n\r\nCisco IOS Software, C800 Software (C800-UNIVERSALK9-M), Version 15.6(2)T, RELEASE SOFTWARE (fc1)\r\nCopyright (c) 1986-2016 by Cisco Systems, Inc.\r\n% Please check for banner login on other ports/protocols\r\nRouter con0 is now available\r\nPress RETURN to get started.\r\n",
+	# Basic Linux Telnet daemon banner
+	"Telnet_Linux_Simple": b"Welcome to the Telnet Server.\r\n", 
+
+	# --- HTTP :80/443 ---
+	# Nginx
+	"HTTP_Nginx_Current": (
+		b"HTTP/1.1 200 OK\r\n"
+		b"Server: nginx/1.25.3\r\n"
+		b"Content-Type: text/html\r\n"
+		b"Content-Length: 0\r\n\r\n"
+	),
+	# Apache
+	"HTTP_Apache_Linux": (
+		b"HTTP/1.1 200 OK\r\n"
+		b"Date: Wed, 10 Dec 2025 15:56:27 GMT\r\n"
+		b"Server: Apache/2.4.58 (Ubuntu)\r\n"
+		b"Last-Modified: Sat, 10 Jun 2023 18:30:00 GMT\r\n"
+		b"Content-Length: 0\r\n"
+		b"Content-Type: text/html\r\n\r\n"
+	),
+
+	# --- MySQL :3306 ---
+	# MySQL 8.0.35 Handshake (Slightly newer and more complex version of your original)
+	# NOTE: Handshake requires specific capabilities, character set, and authentication plugin data.
+	"MYSQL_HANDSHAKE_8_0_35": (
+		b'\x4c\x00\x00\x00\x0a'                       # Packet Header (4 bytes) and Protocol Version (1 byte, 0x0a)
+		b'8.0.35\x00'                                # Server Version String (Spoofed version)
+		b'\x01\x00\x00\x00'                           # Connection ID (Placeholder, should ideally be dynamic)
+		b's\x7b\x64\x63\x4f\x6a\x54\x46'              # Auth Data Part 1 (Salt/Scramble - 8 bytes)
+		b'\x00\xff\xf7\x08\x02\x00\x00\x00'           # Server Capabilities/Status flags
+		b'\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00'   # Reserved (10 bytes)
+		b'\x10\x00\x00\x00\x00\x00'                   # Extended Capabilities & Filler
+		b'S\x6c\x30\x55\x52\x62\x72\x50\x61\x59\x53\x79' # Auth Data Part 2 (Salt/Scramble - 12 bytes)
+		b'\x00'                                       # Auth Plugin name length (only present if AUTH_PLUGIN_RESPECT_CAPABILITY is set)
+		b'mysql_native_password\x00'                  # Auth Plugin name (Note: mysql_native_password is sometimes used for older clients/versions)
+	),
+
+	# --- SMB :445/139 ---
+	# The SMB service on port 445 doesn't use a banner in the traditional sense, but the first packet exchange (SMB Negotiate Protocol Request/Response)
+	# is critical for OS fingerprinting. The response header contains a Server Component, often listing the OS.
+	# The banner below is an *example* of a potential first response payload structure (which is more complex than a simple banner).
+	"SMB_Windows_Server_2019": (
+		b'\x00' # NetBIOS Session Service layer (Session Message)
+		b'\x00\x00\x38' # Length of SMB message (56 bytes)
+		b'\xfe\x53\x4d\x42' # SMB 2 Header (Signature)
+		# ... rest of the complex SMB2 Negotiation Response packet for a Windows Server 2019 ...
+		# (It's too long and complex to represent as a simple banner string here, but essential to note)
+		# For a simple honeypot, often just closing the connection after a specific packet or sending a malformed response
+		# can be enough to log the scanner's attempt. For a 'banner', just logging the connection is often the best you can do.
+		b'SMB_PACKET_SIMULATION' 
+	),
+
+	# --- RDP :3389 ---
+	# Remote Desktop Protocol: Scanners can identify RDP by the first few bytes, especially the TPKT and X.224 negotiation packets.
+	"RDP_Server_Standard": (
+		b'\x03\x00\x00\x13' # TPKT Header (Version 3, length 19)
+		b'\x0e\xe0\x00\x00' # X.224 Connection Request (CR)
+		b'\x00\x00\x00\x01' # Destination/Source Reference (0, 0)
+		b'\x00\x00'
+		b'\x00\x00' # Class
+		b'\x0d\x0a' # CRLF - RDP Negotiation Request (minimal)
+	),
+
+	"CustomBanner": b"220 Honeypot Service V1.0 Ready\r\n",
 }
 
 app_config = {}
