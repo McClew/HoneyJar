@@ -348,8 +348,14 @@ async def handle_tcp_connection(reader: asyncio.StreamReader, writer: asyncio.St
 			if data:
 				captured_data_log = f" CapturedData='{data.decode(errors='ignore').strip()}'"
 
-		except (TimeoutError, ConnectionResetError, UnicodeDecodeError) as e:
-			captured_data_log = f" BannerTxError='{type(e).__name__}'"
+		except asyncio.TimeoutError:
+			captured_data_log = " CapturedData='None (Timeout)'"
+
+		except ConnectionResetError:
+			captured_data_log = " ConnectionReset='True'"
+            
+		except UnicodeDecodeError:
+			captured_data_log = " CapturedData='Binary/Undecodable Bytes'"
 	
 	# Log the event
 	if honeypot_logger:
