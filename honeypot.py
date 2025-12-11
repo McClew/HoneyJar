@@ -423,7 +423,7 @@ class Syslog:
 
 		# What to check for
 		tcp_module = "module(load=\"imtcp\")"
-		tcp_input = "input(type=\"imtcp\" port=\"" + app_config["syslog_port"] + "\""
+		tcp_input = "input(type=\"imtcp\" port=\"" + app_config["syslog_port"] + "\")"
 		udp_module = "module(load=\"imudp\")"
 		udp_input = "input(type=\"imudp\" port=\""
 
