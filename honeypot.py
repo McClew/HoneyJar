@@ -622,16 +622,16 @@ def start_honeypot():
 	Syslog.check_rsyslog_service_status()
 	Syslog.setup_syslog_logger(app_config) 
 	
-	print(Fore.CYAN + "\n[RUN]" + Style.RESET_ALL + " All honeypots active. Press Ctrl+C to stop.")
+	print(Fore.CYAN + "\n[SUC]" + Style.RESET_ALL + " All honeypots active. Press Ctrl+C to stop.")
 	
 	try:
 		# Start the async event loop
 		asyncio.run(start_multiple_listeners(listen_pairs))
 		
 	except KeyboardInterrupt:
-		print(Fore.YELLOW + "\n[STOP]" + Style.RESET_ALL + " All honeypots stopped by user.")
+		print(Fore.YELLOW + "\n[WAR]" + Style.RESET_ALL + " All honeypots stopped by user.")
 	except Exception as error:
-		print(Fore.RED + "[CRIT]" + Style.RESET_ALL + f" An unhandled error occurred during runtime: {error}")
+		print(Fore.RED + "[ERR]" + Style.RESET_ALL + f" An unhandled error occurred during runtime: {error}")
 
 	input("Press any key to return to main menu:")
 	Utility.clear_cli()
