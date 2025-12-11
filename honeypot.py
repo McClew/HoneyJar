@@ -439,7 +439,6 @@ class Syslog:
 			tcp_input_found = any(line.strip() == tcp_input for line in lines)
 
 			if tcp_module_found and tcp_input_found:
-				print(f"Required TCP lines are present and uncommented.")
 				print(Fore.GREEN + "[SUC]" + Style.RESET_ALL + f" Required TCP configurations are present.")
 			else:
 				if not tcp_module_found:
