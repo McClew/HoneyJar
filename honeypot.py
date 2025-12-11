@@ -417,6 +417,7 @@ class Syslog:
 		print(Fore.BLUE + "[INF]" + Style.BRIGHT + " Loading configuration..." + Style.RESET_ALL)
 		Utility.check_privileges()
 		Utility.check_os()
+		Syslog.check_rsyslog_service_status()
 		print("")
 
 		syslog_config_file = app_config['syslog_path']
@@ -465,6 +466,40 @@ class Syslog:
 		input("Press any key to return to main menu:")
 		Utility.clear_cli()
 		return
+
+	@staticmethod
+	def check_rsyslog_service_status():
+		command = ["systemctl", "is-active", "rsyslog"]
+
+		try:
+			result = subprocess.run(
+				command, 
+				capture_output=True, 
+				text=True, 
+				timeout=5
+			)
+
+			if result.returncode == 0:
+				print(Fore.GREEN + "[SUC]" + Style.RESET_ALL + f" rsyslog service is running.")
+				return True
+			elif result.returncode == 3:
+				print(Fore.RED + "[ERR]" + Style.RESET_ALL + f" rsyslog service is inactive or failed.")
+				print(Fore.RED + "[ERR]" + Style.RESET_ALL + f" Systemctl output: {result.stdout.strip()}")
+				return False
+			else:
+				print(Fore.RED + "[ERR]" + Style.RESET_ALL + f" Unexpected systemctl return code: {result.returncode}")
+				print(Fore.RED + "[ERR]" + Style.RESET_ALL + f" {result.stderr.strip()}")
+				return False
+
+		except FileNotFoundError:
+			print(Fore.RED + "[ERR]" + Style.RESET_ALL + " 'systemctl' command not found. Are you on a systemd-based Linux?")
+			return False
+		except subprocess.TimeoutExpired:
+			print(Fore.RED + "[ERR]" + Style.RESET_ALL + " System command timed out.")
+			return False
+		except Exception as error:
+			print(Fore.RED + "[ERR]" + Style.RESET_ALL + f" An unexpected error occurred: {error}")
+			return False
 
 class TcpHoneypot:
 	def __init__(self):
@@ -584,6 +619,7 @@ def start_honeypot():
 		return
 
 	# Setup logging
+	Syslog.check_rsyslog_service_status()
 	Syslog.setup_syslog_logger(app_config) 
 	
 	print(Fore.CYAN + "\n[RUN]" + Style.RESET_ALL + " All honeypots active. Press Ctrl+C to stop.")
@@ -596,6 +632,10 @@ def start_honeypot():
 		print(Fore.YELLOW + "\n[STOP]" + Style.RESET_ALL + " All honeypots stopped by user.")
 	except Exception as error:
 		print(Fore.RED + "[CRIT]" + Style.RESET_ALL + f" An unhandled error occurred during runtime: {error}")
+
+	input("Press any key to return to main menu:")
+	Utility.clear_cli()
+	return
 
 def startup():
 	display_banner()
@@ -616,6 +656,7 @@ def main_menu():
 		print("")
 		Utility.check_privileges()
 		Utility.check_os()
+		Syslog.check_rsyslog_service_status()
 		print("")
 		print(f"Syslog Target: {app_config['syslog_host']}:{app_config['syslog_port']}")
 		print("Honeyed Ports: " + ", ".join([f"{port}:{service}:{protocol}" for port, service, protocol in app_config['honeypot_listen_pairs']]))
