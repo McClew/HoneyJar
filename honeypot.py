@@ -6,7 +6,6 @@ from colorama import Fore, Back, Style
 import configparser
 import socket
 import asyncio
-from typing import TextIO
 import logging
 from logging.handlers import SysLogHandler
 
@@ -303,6 +302,7 @@ def view_banner(banner_name, banner_data):
 	print(Fore.YELLOW + "|  AVAILABLE SERVICE BANNERS   |" + Style.RESET_ALL)
 	print(Fore.YELLOW + "+------------------------------+" + Style.RESET_ALL)
 	print(Fore.YELLOW + f">  VIEWING BANNER: {banner_name:<11}" + Style.RESET_ALL)
+
 	try:
 		decoded_banner = banner_data.decode('utf-8').strip().replace('\r\n', ' [CRLF] ')
 		print(Fore.GREEN + Style.BRIGHT + "Type: Text/ASCII" + Style.RESET_ALL)
@@ -370,28 +370,27 @@ def setup_syslog_logger(config):
 	logger.setLevel(logging.INFO)
 	
 	# Prevent logging messages from duplicating via the root handler
-	logger.propagate = False 
+	logger.propagate = False
 
 	# Create SysLogHandler
 	try:
-		handler = SysLogHandler(address=(SYSLOG_HOST, SYSLOG_PORT), facility=SysLogHandler.LOG_LOCAL1, socktype=socket.SOCK_DGRAM) # Use UDP for Syslog
-		
+		handler = SysLogHandler(address=(SYSLOG_HOST, SYSLOG_PORT), facility=SysLogHandler.LOG_LOCAL1, socktype=socket.SOCK_STREAM)
 		formatter = logging.Formatter('%(name)s: %(message)s')
 		handler.setFormatter(formatter)
 		logger.addHandler(handler)
 		
-		honeypot_logger = logger # Assign to global variable
+		honeypot_logger = logger
 		print(Fore.GREEN + "[SUC]" + Style.RESET_ALL + f" Syslog logging initialized at {SYSLOG_HOST}:{SYSLOG_PORT}.")
 		return logger
 		
 	except Exception as error:
 		print(Fore.RED + "[ERR]" + Style.RESET_ALL + f" Failed to set up Syslog logger: {error}")
-		return None # Return None if setup fails
+		return None
 
 async def handle_tcp_connection(reader: asyncio.StreamReader, writer: asyncio.StreamWriter):
 	# Handles a single zero-interaction TCP connection
-	addr = writer.get_extra_info('peername')
-	attacker_ip, attacker_port = addr[0], addr[1]
+	address = writer.get_extra_info('peername')
+	attacker_ip, attacker_port = address[0], address[1]
 	target_port = writer.get_extra_info('sockname')[1]
 	
 	# Determine which service name was used to launch this listener
@@ -417,13 +416,13 @@ async def handle_tcp_connection(reader: asyncio.StreamReader, writer: asyncio.St
 				captured_data_log = f" CapturedData='{data.decode(errors='ignore').strip()}'"
 
 		except asyncio.TimeoutError:
-			captured_data_log = " CapturedData='None (Timeout)'"
+			captured_data_log = "CapturedData='None (Timeout)'"
 
 		except ConnectionResetError:
-			captured_data_log = " ConnectionReset='True'"
+			captured_data_log = "ConnectionReset='True'"
             
 		except UnicodeDecodeError:
-			captured_data_log = " CapturedData='Binary/Undecodable Bytes'"
+			captured_data_log = "CapturedData='Binary/Undecodable Bytes'"
 	
 	# Log the event
 	if honeypot_logger:
@@ -437,7 +436,6 @@ async def handle_tcp_connection(reader: asyncio.StreamReader, writer: asyncio.St
 
 class UdpHoneypot(asyncio.DatagramProtocol):
     def __init__(self, target_port, service_name):
-        # Store information about this specific listener instance
         self.target_port = target_port
         self.service_name = service_name
 
@@ -465,19 +463,21 @@ async def start_multiple_listeners(listen_pairs):
 	
 	for port, service, protocol in listen_pairs:
 		try:
-			if protocol == 'TCP':
+			if protocol == "TCP":
 				# Start a TCP Server
 				server = await asyncio.start_server(
-					handle_tcp_connection, '0.0.0.0', port
+					handle_tcp_connection, "0.0.0.0", port
 				)
+
 				tasks.append(server.serve_forever())
 				print(Fore.GREEN + "[SUC]" + Style.RESET_ALL + f" Listening on TCP port {port} (Service: {service})")
 				
-			elif protocol == 'UDP':
+			elif protocol == "UDP":
 				# Start a UDP Listener
 				transport, protocol_instance = await asyncio.get_event_loop().create_datagram_endpoint(
 					lambda: UdpHoneypot(port, service), local_addr=('0.0.0.0', port)
 				)
+
 				# Store the transport handle to keep the task alive
 				tasks.append(transport.close()) 
 				print(Fore.GREEN + "[SUC]" + Style.RESET_ALL + f" Listening on UDP port {port} (Service: {service})")
