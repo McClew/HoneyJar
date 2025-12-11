@@ -11,8 +11,8 @@ from logging.handlers import SysLogHandler
 
 CONFIG_FILE = "honeypot_config.ini"
 CONFIG_REQUIRED_SECTIONS = {
-	'Syslog': ['host', 'port'],
-	'Honeypot': ['listen_pairs']
+	"Syslog": ["host", "port", "path"],
+	"Honeypot": ["listen_pairs"]
 }
 
 SERVICE_BANNERS = {
@@ -118,6 +118,17 @@ class Utility:
 			subprocess.run(["clear"])
 		elif sys.platform == "win32":
 			os.system("cls")
+
+	@staticmethod
+	def check_privileges():
+		if os.getuid() != 0:
+			print(Fore.YELLOW + "[WAR]" + Style.RESET_ALL + " Not running as root, some processes may fail.")
+
+	@staticmethod
+	def check_os():
+		if sys.platform != "linux" and sys.platform != "linux2":
+			print(Fore.YELLOW + "[WAR]" + Style.RESET_ALL + " Not running on a Linux system, some features may not function correctly.")
+			print(Fore.YELLOW + "[WAR]" + Style.RESET_ALL + " For the best experience run on an Ubuntu device.")
 
 class Config:
 	def __init__(self):
@@ -292,147 +303,219 @@ class Config:
 		except IOError:
 			return False
 
-def startup():
-	display_banner()
-	Utility.clear_cli()
+class Banner:
+	def __init__(self):
+		pass
 
-def view_banner(banner_name, banner_data):
-	Utility.clear_cli()
-	print(Fore.YELLOW + "+------------------------------+" + Style.RESET_ALL)
-	print(Fore.YELLOW + "|  AVAILABLE SERVICE BANNERS   |" + Style.RESET_ALL)
-	print(Fore.YELLOW + "+------------------------------+" + Style.RESET_ALL)
-	print(Fore.YELLOW + f">  VIEWING BANNER: {banner_name:<11}" + Style.RESET_ALL)
-
-	try:
-		decoded_banner = banner_data.decode('utf-8').strip().replace('\r\n', ' [CRLF] ')
-		print(Fore.GREEN + Style.BRIGHT + "Type: Text/ASCII" + Style.RESET_ALL)
-		print("-" * 40)
-		print(decoded_banner)
-		print("-" * 40)
-		
-	except UnicodeDecodeError:
-		print(Fore.RED + Style.BRIGHT + "Type: Binary/Protocol Handshake" + Style.RESET_ALL)
-		print(Fore.RED + "WARNING: Cannot display binary data directly as text." + Style.RESET_ALL)
-		print("-" * 40)
-		print("Raw Hexadecimal Data:")
-
-		print(banner_data.hex())
-		print("-" * 40)
-		
-	input("\nPress Enter to return to the Banner List...")
-
-def banner_menu():
-	banner_names = list(SERVICE_BANNERS.keys())
-	
-	while True:
+	@staticmethod
+	def view_banner(banner_name, banner_data):
 		Utility.clear_cli()
 		print(Fore.YELLOW + "+------------------------------+" + Style.RESET_ALL)
 		print(Fore.YELLOW + "|  AVAILABLE SERVICE BANNERS   |" + Style.RESET_ALL)
 		print(Fore.YELLOW + "+------------------------------+" + Style.RESET_ALL)
-		
-		for i, name in enumerate(banner_names):
-			print(f"{i + 1}. {name}")
-			
-		print("-" * 30)
-		print("0. Return to Main Menu")
-		print("-" * 30)
-		
-		choice = input("Select a banner number (1-{}) or 0: ".format(len(banner_names))).strip()
-		
+		print(Fore.YELLOW + f">  VIEWING BANNER: {banner_name:<11}" + Style.RESET_ALL)
+
 		try:
-			choice_index = int(choice)
+			decoded_banner = banner_data.decode('utf-8').strip().replace('\r\n', ' [CRLF] ')
+			print(Fore.GREEN + Style.BRIGHT + "Type: Text/ASCII" + Style.RESET_ALL)
+			print("-" * 40)
+			print(decoded_banner)
+			print("-" * 40)
 			
-			if choice_index == 0:
-				Utility.clear_cli()
-				return
-
-			elif 1 <= choice_index <= len(banner_names):
-				selected_name = banner_names[choice_index - 1]
-				selected_data = SERVICE_BANNERS[selected_name]
-				
-				view_banner(selected_name, selected_data) # Call the viewer function
-				
-			else:
-				print(Fore.RED + "[ERR]" + Style.RESET_ALL + " Invalid number selected.")
-				time.sleep(1)
-				
-		except ValueError:
-			print(Fore.RED + "[ERR]" + Style.RESET_ALL + " Invalid input. Please enter a number.")
-			time.sleep(1)
-
-def setup_syslog_logger(config):
-	global honeypot_logger
-	
-	SYSLOG_HOST = config['syslog_host']
-	SYSLOG_PORT = int(config['syslog_port'])
-	
-	logger = logging.getLogger('HoneypotLogger')
-	logger.setLevel(logging.INFO)
-	
-	# Prevent logging messages from duplicating via the root handler
-	logger.propagate = False
-
-	# Create SysLogHandler
-	try:
-		handler = SysLogHandler(address=(SYSLOG_HOST, SYSLOG_PORT), facility=SysLogHandler.LOG_LOCAL1, socktype=socket.SOCK_STREAM)
-		formatter = logging.Formatter('%(name)s: %(message)s')
-		handler.setFormatter(formatter)
-		logger.addHandler(handler)
-		
-		honeypot_logger = logger
-		print(Fore.GREEN + "[SUC]" + Style.RESET_ALL + f" Syslog logging initialized at {SYSLOG_HOST}:{SYSLOG_PORT}.")
-		return logger
-		
-	except Exception as error:
-		print(Fore.RED + "[ERR]" + Style.RESET_ALL + f" Failed to set up Syslog logger: {error}")
-		return None
-
-async def handle_tcp_connection(reader: asyncio.StreamReader, writer: asyncio.StreamWriter):
-	# Handles a single zero-interaction TCP connection
-	address = writer.get_extra_info('peername')
-	attacker_ip, attacker_port = address[0], address[1]
-	target_port = writer.get_extra_info('sockname')[1]
-	
-	# Determine which service name was used to launch this listener
-	banner_data = None
-	for _, service_name, protocol in app_config['honeypot_listen_pairs']:
-		if protocol == 'TCP' and target_port == _:
-			banner_data = SERVICE_BANNERS.get(service_name)
-			break
-
-	log_message = f"TCP connection received. TargetPort={target_port} SourceIP={attacker_ip}"
-	captured_data_log = ""
-
-	if banner_data:
-		try:
-			# Send the service banner
-			writer.write(banner_data)
-			await writer.drain() 
-			
-			# Wait briefly for a response (e.g., username/password)
-			data = await asyncio.wait_for(reader.read(1024), timeout=1.5) 
-			
-			if data:
-				captured_data_log = f" CapturedData='{data.decode(errors='ignore').strip()}'"
-
-		except asyncio.TimeoutError:
-			captured_data_log = "CapturedData='None (Timeout)'"
-
-		except ConnectionResetError:
-			captured_data_log = "ConnectionReset='True'"
-            
 		except UnicodeDecodeError:
-			captured_data_log = "CapturedData='Binary/Undecodable Bytes'"
-	
-	# Log the event
-	if honeypot_logger:
-		honeypot_logger.info(log_message + captured_data_log, extra={'target_port': target_port, 'source_ip': attacker_ip})
-	else:
-		print(Fore.RED + "[LOG_ERR]" + Style.RESET_ALL + log_message + captured_data_log)
+			print(Fore.RED + Style.BRIGHT + "Type: Binary/Protocol Handshake" + Style.RESET_ALL)
+			print(Fore.RED + "WARNING: Cannot display binary data directly as text." + Style.RESET_ALL)
+			print("-" * 40)
+			print("Raw Hexadecimal Data:")
+
+			print(banner_data.hex())
+			print("-" * 40)
+			
+		input("\nPress Enter to return to the Banner List...")
+
+	@staticmethod
+	def banner_menu():
+		banner_names = list(SERVICE_BANNERS.keys())
 		
-	# Immediately close the connection
-	writer.close()
-	await writer.wait_closed()
+		while True:
+			Utility.clear_cli()
+			print(Fore.YELLOW + "+------------------------------+" + Style.RESET_ALL)
+			print(Fore.YELLOW + "|  AVAILABLE SERVICE BANNERS   |" + Style.RESET_ALL)
+			print(Fore.YELLOW + "+------------------------------+" + Style.RESET_ALL)
+			
+			for i, name in enumerate(banner_names):
+				print(f"{i + 1}. {name}")
+				
+			print("-" * 30)
+			print("0. Return to Main Menu")
+			print("-" * 30)
+			
+			choice = input("Select a banner number (1-{}) or 0: ".format(len(banner_names))).strip()
+			
+			try:
+				choice_index = int(choice)
+				
+				if choice_index == 0:
+					Utility.clear_cli()
+					return
+
+				elif 1 <= choice_index <= len(banner_names):
+					selected_name = banner_names[choice_index - 1]
+					selected_data = SERVICE_BANNERS[selected_name]
+					
+					Banner.view_banner(selected_name, selected_data) # Call the viewer function
+					
+				else:
+					print(Fore.RED + "[ERR]" + Style.RESET_ALL + " Invalid number selected.")
+					time.sleep(1)
+					
+			except ValueError:
+				print(Fore.RED + "[ERR]" + Style.RESET_ALL + " Invalid input. Please enter a number.")
+				time.sleep(1)
+
+class Syslog:
+	def __init__(self):
+		pass
+
+	@staticmethod
+	def setup_syslog_logger(config):
+		global honeypot_logger
+		
+		SYSLOG_HOST = config['syslog_host']
+		SYSLOG_PORT = int(config['syslog_port'])
+		
+		logger = logging.getLogger('HoneypotLogger')
+		logger.setLevel(logging.INFO)
+		
+		# Prevent logging messages from duplicating via the root handler
+		logger.propagate = False
+
+		# Create SysLogHandler
+		try:
+			handler = SysLogHandler(address=(SYSLOG_HOST, SYSLOG_PORT), facility=SysLogHandler.LOG_LOCAL1, socktype=socket.SOCK_STREAM)
+			formatter = logging.Formatter('%(name)s: %(message)s')
+			handler.setFormatter(formatter)
+			logger.addHandler(handler)
+			
+			honeypot_logger = logger
+			print(Fore.GREEN + "[SUC]" + Style.RESET_ALL + f" Syslog logging initialized at {SYSLOG_HOST}:{SYSLOG_PORT}.")
+			return logger
+			
+		except Exception as error:
+			print(Fore.RED + "[ERR]" + Style.RESET_ALL + f" Failed to set up Syslog logger: {error}")
+			return None
+
+	@staticmethod
+	def check_syslog_config():
+		global app_config
+
+		Utility.clear_cli()
+		print(Fore.YELLOW + "+------------------------------+" + Style.RESET_ALL)
+		print(Fore.YELLOW + "|     SYSLOG CONFIGURATION     |" + Style.RESET_ALL)
+		print(Fore.YELLOW + "+------------------------------+" + Style.RESET_ALL)
+		print("")
+		print(Fore.BLUE + "[INF]" + Style.BRIGHT + " Loading configuration..." + Style.RESET_ALL)
+		Utility.check_privileges()
+		Utility.check_os()
+		print("")
+
+		syslog_config_file = app_config['syslog_path']
+
+		# What to check for
+		tcp_module = 'module(load="imtcp")'
+		tcp_input = 'input(type="imtcp" port="'
+		udp_module = 'module(load="imudp")'
+		udp_input = 'input(type="imudp" port="'
+
+		try:
+			with open(syslog_config_file, 'r') as f:
+				lines = f.readlines()
+
+			# Check for the required TCP module line
+			tcp_module_found = any(line.strip() == tcp_module for line in lines)
+
+			# Check for the required TCP input line
+			tcp_input_found = any(line.strip() == tcp_input for line in lines)
+
+			if tcp_module_found and tcp_input_found:
+				print(f"Required TCP lines are present and uncommented.")
+				print(Fore.GREEN + "[SUC]" + Style.RESET_ALL + f" Required TCP configurations are present.")
+			else:
+				if not tcp_module_found:
+					print(Fore.RED + "[ERR]" + Style.RESET_ALL + f" TCP configuration missing or commented out: {tcp_module}")
+				if not tcp_input_found:
+					print(Fore.RED + "[ERR]" + Style.RESET_ALL + f" TCP configuration missing or commented out: {tcp_input}")
+
+			for i, line in enumerate(lines):
+				line_stripped = line.strip()
+
+				# Check for UDP lines, ignoring lines that start with '#'
+				if line_stripped.startswith(udp_module) or line_stripped.startswith(udp_input):
+
+					# Check if the line is NOT commented out
+					if not line_stripped.startswith("#"):
+						print(Fore.RED + "[ERR]" + Style.RESET_ALL + f" UDP configuration active: {line_stripped}")
+
+		except FileNotFoundError:
+			print(Fore.RED + "[ERR]" + Style.RESET_ALL + f" Config file was not found at {syslog_config_file}")
+		except Exception as error:
+			print(Fore.RED + "[ERR]" + Style.RESET_ALL + f"An unexpected error occurred: {error}")
+
+		print("")
+		input("Press any key to return to main menu:")
+		Utility.clear_cli()
+		return
+
+class TcpHoneypot:
+	def __init__(self):
+		pass
+
+	async def handle_tcp_connection(reader: asyncio.StreamReader, writer: asyncio.StreamWriter):
+		# Handles a single zero-interaction TCP connection
+		address = writer.get_extra_info('peername')
+		attacker_ip, attacker_port = address[0], address[1]
+		target_port = writer.get_extra_info('sockname')[1]
+		
+		# Determine which service name was used to launch this listener
+		banner_data = None
+		for _, service_name, protocol in app_config['honeypot_listen_pairs']:
+			if protocol == 'TCP' and target_port == _:
+				banner_data = SERVICE_BANNERS.get(service_name)
+				break
+
+		log_message = f"TCP connection received. TargetPort={target_port} SourceIP={attacker_ip}"
+		captured_data_log = ""
+
+		if banner_data:
+			try:
+				# Send the service banner
+				writer.write(banner_data)
+				await writer.drain() 
+				
+				# Wait briefly for a response (e.g., username/password)
+				data = await asyncio.wait_for(reader.read(1024), timeout=1.5) 
+				
+				if data:
+					captured_data_log = f" CapturedData='{data.decode(errors='ignore').strip()}'"
+
+			except asyncio.TimeoutError:
+				captured_data_log = "CapturedData='None (Timeout)'"
+
+			except ConnectionResetError:
+				captured_data_log = "ConnectionReset='True'"
+	            
+			except UnicodeDecodeError:
+				captured_data_log = "CapturedData='Binary/Undecodable Bytes'"
+		
+		# Log the event
+		if honeypot_logger:
+			honeypot_logger.info(log_message + captured_data_log, extra={'target_port': target_port, 'source_ip': attacker_ip})
+		else:
+			print(Fore.RED + "[LOG_ERR]" + Style.RESET_ALL + log_message + captured_data_log)
+			
+		# Immediately close the connection
+		writer.close()
+		await writer.wait_closed()
 
 class UdpHoneypot(asyncio.DatagramProtocol):
     def __init__(self, target_port, service_name):
@@ -466,7 +549,7 @@ async def start_multiple_listeners(listen_pairs):
 			if protocol == "TCP":
 				# Start a TCP Server
 				server = await asyncio.start_server(
-					handle_tcp_connection, "0.0.0.0", port
+					TcpHoneypot.handle_tcp_connection, "0.0.0.0", port
 				)
 
 				tasks.append(server.serve_forever())
@@ -501,7 +584,7 @@ def start_honeypot():
 		return
 
 	# Setup logging
-	setup_syslog_logger(app_config) 
+	Syslog.setup_syslog_logger(app_config) 
 	
 	print(Fore.CYAN + "\n[RUN]" + Style.RESET_ALL + " All honeypots active. Press Ctrl+C to stop.")
 	
@@ -514,8 +597,13 @@ def start_honeypot():
 	except Exception as error:
 		print(Fore.RED + "[CRIT]" + Style.RESET_ALL + f" An unhandled error occurred during runtime: {error}")
 
+def startup():
+	display_banner()
+	Utility.clear_cli()
+
 def main_menu():
 	global app_config
+
 	while True:
 		try:
 			app_config = Config.load_config()
@@ -525,25 +613,33 @@ def main_menu():
 		print("\n" + Fore.YELLOW + "+----------------------------+" + Style.RESET_ALL)
 		print(Fore.YELLOW + "|          HONEYPOT          |" + Style.RESET_ALL)
 		print(Fore.YELLOW + "+----------------------------+" + Style.RESET_ALL)
+		print("")
+		Utility.check_privileges()
+		Utility.check_os()
+		print("")
 		print(f"Syslog Target: {app_config['syslog_host']}:{app_config['syslog_port']}")
 		print("Honeyed Ports: " + ", ".join([f"{port}:{service}:{protocol}" for port, service, protocol in app_config['honeypot_listen_pairs']]))
 		print("")
 		print("-" * 30)
 		print("1. Start Honeypot")
 		print("2. Edit Configuration")
-		print("3. View Services")
-		print("4. Exit Application")
+		print("3. Check Syslog Config")
+		print("4. View Services")
+		print("-" * 30)
+		print("0. Exit Application")
 		print("-" * 30)
 
 		choice = input("Select an option (1-4): ").strip()
 
-		if choice == '1':
+		if choice == "1":
 			start_honeypot()
-		elif choice == '2':
+		elif choice == "2":
 			Config.edit_config()
-		elif choice == '3':
-			banner_menu()
-		elif choice == '4':
+		elif choice == "3":
+			Syslog.check_syslog_config()
+		elif choice == "4":
+			Banner.banner_menu()
+		elif choice == "0":
 			print(Fore.BLUE + "[INF]" + Style.BRIGHT + " Shutting down." + Style.RESET_ALL)
 			break
 		else:
