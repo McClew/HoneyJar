@@ -444,7 +444,7 @@ class Syslog:
 				if not tcp_module_found:
 					print(Fore.RED + "[ERR]" + Style.RESET_ALL + f" TCP configuration missing or commented out: {tcp_module}")
 				if not tcp_input_found:
-					print(Fore.RED + "[ERR]" + Style.RESET_ALL + f" TCP configuration missing or commented out: {tcp_input}")
+					print(Fore.RED + "[ERR]" + Style.RESET_ALL + f" TCP configuration missing, incorrect or commented out: {tcp_input}")
 
 			for i, line in enumerate(lines):
 				line_stripped = line.strip()
