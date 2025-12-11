@@ -398,7 +398,7 @@ class Syslog:
 			logger.addHandler(handler)
 			
 			honeypot_logger = logger
-			print(Fore.GREEN + "[SUC]" + Style.RESET_ALL + f" Syslog logging initialized at {syslog_host}:{syslog_port}.")
+			print(Fore.GREEN + "[SUC]" + Style.RESET_ALL + f" Syslog logging initialised at {syslog_host}:{syslog_port}.")
 			return logger
 			
 		except Exception as error:
