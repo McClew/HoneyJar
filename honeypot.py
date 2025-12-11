@@ -381,8 +381,8 @@ class Syslog:
 	def setup_syslog_logger(config):
 		global honeypot_logger
 		
-		SYSLOG_HOST = config['syslog_host']
-		SYSLOG_PORT = int(config['syslog_port'])
+		syslog_host = config['syslog_host']
+		syslog_port = int(config['syslog_port'])
 		
 		logger = logging.getLogger('HoneypotLogger')
 		logger.setLevel(logging.INFO)
@@ -392,13 +392,13 @@ class Syslog:
 
 		# Create SysLogHandler
 		try:
-			handler = SysLogHandler(address=(SYSLOG_HOST, SYSLOG_PORT), facility=SysLogHandler.LOG_LOCAL1, socktype=socket.SOCK_STREAM)
+			handler = SysLogHandler(address=(syslog_host, syslog_port), facility=SysLogHandler.LOG_LOCAL1, socktype=socket.SOCK_STREAM)
 			formatter = logging.Formatter('%(name)s: %(message)s')
 			handler.setFormatter(formatter)
 			logger.addHandler(handler)
 			
 			honeypot_logger = logger
-			print(Fore.GREEN + "[SUC]" + Style.RESET_ALL + f" Syslog logging initialized at {SYSLOG_HOST}:{SYSLOG_PORT}.")
+			print(Fore.GREEN + "[SUC]" + Style.RESET_ALL + f" Syslog logging initialized at {syslog_host}:{syslog_port}.")
 			return logger
 			
 		except Exception as error:
@@ -422,10 +422,10 @@ class Syslog:
 		syslog_config_file = app_config['syslog_path']
 
 		# What to check for
-		tcp_module = 'module(load="imtcp")'
-		tcp_input = 'input(type="imtcp" port="'
-		udp_module = 'module(load="imudp")'
-		udp_input = 'input(type="imudp" port="'
+		tcp_module = "module(load=\"imtcp\")"
+		tcp_input = "input(type=\"imtcp\" port=\"" + config["syslog_port"] + "\""
+		udp_module = "module(load=\"imudp\")"
+		udp_input = "input(type=\"imudp\" port=\""
 
 		try:
 			with open(syslog_config_file, 'r') as f:
