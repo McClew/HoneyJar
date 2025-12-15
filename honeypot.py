@@ -19,7 +19,7 @@ CONFIG_REQUIRED_SECTIONS = {
 	"Syslog": ["host", "port", "path"],
 	"Honeypot": ["listen_pairs"],
 	"Notifications": ["mail_enabled", "smtp_server", "smtp_port", "smtp_username", "smtp_password", "sender_email", "recipient_email"],
-	"Datto EDR Integration": ["tenant_domain", "location_id"]
+	"EDR": ["tenant_domain", "location_id"]
 }
 
 SERVICE_BANNERS = {
@@ -536,8 +536,8 @@ class Mail:
 
 		# generate EDR location URL
 		edr_location_link = ""
-		if app_config["datto_edr_integration_location_id"] != None and app_config["datto_edr_integration_location_id"] != "" and app_config["datto_edr_integration_tenant_domain"] != None and app_config["datto_edr_integration_tenant_domain"] != "":
-			edr_location_link = "<p>EDR Client Location: <a href=\"https://" + app_config["datto_edr_integration_tenant_domain"] + "/organizations/locations/" + app_config["datto_edr_integration_location_id"] + "\">https://" + app_config["datto_edr_integration_tenant_domain"] + "/organizations/locations/" + app_config["datto_edr_integration_location_id"] + "</a></p>"
+		if app_config["edr_location_id"] != None and app_config["edr_location_id"] != "" and app_config["edr_tenant_domain"] != None and app_config["edr_tenant_domain"] != "":
+			edr_location_link = "<p>EDR Client Location: <a href=\"https://" + app_config["edr_tenant_domain"] + "/organizations/locations/" + app_config["edr_location_id"] + "\">https://" + app_config["edr_tenant_domain"] + "/organizations/locations/" + app_config["edr_location_id"] + "</a></p>"
 
 		html_body = f"""\
 		<html>
