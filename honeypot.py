@@ -1,6 +1,7 @@
 import os
 import sys
 import time
+import datetime
 import subprocess
 from colorama import Fore, Back, Style
 import configparser
@@ -108,6 +109,8 @@ SERVICE_BANNERS = {
 }
 
 app_config = {}
+
+last_mail_alert = None
 
 def display_banner():
 	print(Fore.YELLOW + "+----------------------------+" + Style.RESET_ALL)
@@ -513,8 +516,13 @@ class Mail:
 	@staticmethod
 	def send_mail_notification(log_message):
 		global app_config
+		global last_mail_alert
 
-		if app_config["notifications_mail_enabled"] == 1:
+		current_time = datetime.datetime.now(datetime.UTC) 
+		future_time = current_time + datetime.timedelta(minutes=10)
+		unix_timestamp = future_time.timestamp()
+
+		if app_config["notifications_mail_enabled"] == 1 & last_mail_alert > unix_timestamp:
 			message = EmailMessage()
 			message["Subject"] = "TRIPWIRE triggered at " + app_config["general_client"]
 			message["From"] = app_config["notifications_sender_email"]
@@ -545,8 +553,11 @@ class Mail:
 			try:
 				connection = SMTP(app_config["notifications_smtp_server"])
 				connection.login(app_config["notifications_smtp_username"], app_config["notifications_smtp_password"])
+				
 				try:
 					connection.sendmail(app_config["notifications_sender_email"], app_config["notifications_recipient_email"], message.as_string())
+
+					last_mail_alert = datetime.datetime.now(datetime.UTC).timestamp()
 					print(Fore.BLUE + "[INF]" + Style.RESET_ALL + " Mail Notification sent: (" + app_config["notifications_sender_email"] + ", " + app_config["notifications_recipient_email"] + ")")
 				finally:
 					connection.quit()
