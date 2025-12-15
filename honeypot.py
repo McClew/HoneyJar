@@ -110,7 +110,7 @@ SERVICE_BANNERS = {
 
 app_config = {}
 
-last_mail_alert = None
+last_mail_alert = 0
 
 def display_banner():
 	print(Fore.YELLOW + "+----------------------------+" + Style.RESET_ALL)
@@ -553,7 +553,7 @@ class Mail:
 			try:
 				connection = SMTP(app_config["notifications_smtp_server"])
 				connection.login(app_config["notifications_smtp_username"], app_config["notifications_smtp_password"])
-				
+
 				try:
 					connection.sendmail(app_config["notifications_sender_email"], app_config["notifications_recipient_email"], message.as_string())
 
