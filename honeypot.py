@@ -597,7 +597,7 @@ class TcpHoneypot:
 		# Log the event
 		if honeypot_logger:
 			honeypot_logger.info(log_message + captured_data_log, extra={'target_port': target_port, 'source_ip': attacker_ip})
-			print(Fore.YELLOW + "[HIT]" + Style.RESET_ALL + " Event occurred: " + log_message + captured_data_log)
+			print(Fore.YELLOW + "[HIT]" + Style.RESET_ALL + " Event occurred: " + log_message)
 		else:
 			print(Fore.RED + "[ERR] " + Style.RESET_ALL + log_message)
 
@@ -630,7 +630,7 @@ class UdpHoneypot(asyncio.DatagramProtocol):
 			honeypot_logger.info(log_message + captured_data_log)
 			print(Fore.YELLOW + "[HIT]" + Style.RESET_ALL + " Event occurred: " + log_message)
 		else:
-			print(Fore.RED + "[LOG_ERR]" + Style.RESET_ALL + log_message + captured_data_log)
+			print(Fore.RED + "[ERR]" + Style.RESET_ALL + log_message)
 
 		# Send email notification
 		Mail.send_mail_notification(log_message + captured_data_log)
