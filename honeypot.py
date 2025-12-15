@@ -8,11 +8,17 @@ import socket
 import asyncio
 import logging
 from logging.handlers import SysLogHandler
+import smtplib
+from email.message import EmailMessage
+from email.mime.text import MIMEText
 
 CONFIG_FILE = "honeypot_config.ini"
 CONFIG_REQUIRED_SECTIONS = {
+	"General": ["client", "hostname"],
 	"Syslog": ["host", "port", "path"],
-	"Honeypot": ["listen_pairs"]
+	"Honeypot": ["listen_pairs"],
+	"Notifications": ["mail_enabled", "smtp_server", "smtp_port", "smtp_username", "smtp_password", "sender_email", "recipient_email"],
+	"Datto EDR Integration": ["tenant_domain", "location_id"]
 }
 
 SERVICE_BANNERS = {
@@ -500,6 +506,55 @@ class Syslog:
 			print(Fore.RED + "[ERR]" + Style.RESET_ALL + f" An unexpected error occurred: {error}")
 			return False
 
+class Mail:
+	def __init__(self):
+		pass
+
+	@staticmethod
+	def send_mail_notification(log_message):
+		global app_config
+
+		if app_config["notifications_mail_enabled"] == 1:
+			message = EmailMessage()
+			message["Subject"] = "TRIPWIRE triggered at " + app_config["general_client"]
+			message["From"] = app_config["notifications_sender_email"]
+			message["To"] = app_config["notifications_recipient_email"]
+
+
+			# generate EDR location URL
+			edr_location_link = ""
+			if app_config["datto_edr_integration_location_id"] != None 
+				& app_config["datto_edr_integration_location_id"] != ""
+				& app_config["tenant_domain"] != None
+				& app_config["tenant_domain"] != "":
+				edr_location_link = "<p>EDR Client Location: <a href=\"https://" + tenant_domain + "/organizations/locations/" + app_config["datto_edr_integration_location_id"] + "\">https://" + tenant_domain + "/organizations/locations/" + app_config["datto_edr_integration_location_id"] + "</a></p>"
+
+			html_body = f"""\
+			<html>
+				<head></head>
+				<body>
+					<p><strong>TRIPWIRE was triggered for {app_config["general_client"]}</strong></p>
+					<br>
+					<p><strong>Log:</strong></p>
+					<p>{log_message}</p>
+					<br>
+					{edr_location_link}
+				</body>
+			</html>
+			"""
+
+			message = MIMEText(html_body, "html")
+
+			try:
+				connection = SMTP(app_config["notifications_smtp_server"])
+				connection.login(app_config["notifications_smtp_username"], app_config["notifications_smtp_password"])
+				try:
+					connection.sendmail(app_config["notifications_sender_email"], app_config["notifications_recipient_email"], message.as_string())
+				finally:
+					connection.quit()
+			except:
+				print(Fore.RED + "[ERR]" + Style.RESET_ALL + " Mail failed to send." + captured_data_log)
+
 class TcpHoneypot:
 	def __init__(self):
 		pass
@@ -545,34 +600,40 @@ class TcpHoneypot:
 		if honeypot_logger:
 			honeypot_logger.info(log_message + captured_data_log, extra={'target_port': target_port, 'source_ip': attacker_ip})
 		else:
-			print(Fore.RED + "[LOG_ERR]" + Style.RESET_ALL + log_message + captured_data_log)
-			
-		# Immediately close the connection
+			print(Fore.RED + "[ERR]" + Style.RESET_ALL + log_message + captured_data_log)
+		
+		# Send email notification
+		Mail.send_mail_notification(log_message + captured_data_log)
+
+		# Close the connection
 		writer.close()
 		await writer.wait_closed()
 
 class UdpHoneypot(asyncio.DatagramProtocol):
-    def __init__(self, target_port, service_name):
-        self.target_port = target_port
-        self.service_name = service_name
+	def __init__(self, target_port, service_name):
+		self.target_port = target_port
+		self.service_name = service_name
 
-    def connection_made(self, transport):
-        self.transport = transport
+	def connection_made(self, transport):
+		self.transport = transport
 
-    def datagram_received(self, data, addr):
-        attacker_ip, attacker_port = addr
-        
-        log_message = f"UDP datagram received. TargetPort={self.target_port} SourceIP={attacker_ip}"
-        
-        try:
-            captured_data_log = f" CapturedData='{data.decode(errors='ignore').strip()}'"
-        except UnicodeDecodeError:
-            captured_data_log = f" CapturedData='Binary/Undecodable Bytes'"
+	def datagram_received(self, data, addr):
+		attacker_ip, attacker_port = addr
 
-        if honeypot_logger:
-            honeypot_logger.info(log_message + captured_data_log)
-        else:
-            print(Fore.RED + "[LOG_ERR]" + Style.RESET_ALL + log_message + captured_data_log)
+		log_message = f"UDP datagram received. TargetPort={self.target_port} SourceIP={attacker_ip}"
+
+		try:
+			captured_data_log = f" CapturedData='{data.decode(errors='ignore').strip()}'"
+		except UnicodeDecodeError:
+			captured_data_log = f" CapturedData='Binary/Undecodable Bytes'"
+
+		if honeypot_logger:
+			honeypot_logger.info(log_message + captured_data_log)
+		else:
+			print(Fore.RED + "[LOG_ERR]" + Style.RESET_ALL + log_message + captured_data_log)
+
+		# Send email notification
+		Mail.send_mail_notification(log_message + captured_data_log)
 
 async def start_multiple_listeners(listen_pairs):
 	# Launches concurrent TCP and UDP listeners
