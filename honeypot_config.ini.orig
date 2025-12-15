@@ -13,7 +13,7 @@ path = /etc/rsyslog.conf
 listen_pairs = 21:FTP_ProFTPD_Linux:TCP; 22:SSH_Ubuntu_Current:TCP; 80:HTTP_Nginx_Current:TCP; 3306:MYSQL_HANDSHAKE_8_0_35:TCP;
 
 [Notifications]
-mail_enabled = no
+mail_enabled = 0
 smtp_server = 127.0.0.1
 smtp_port = 587
 smtp_username = ""
