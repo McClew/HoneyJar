@@ -532,7 +532,7 @@ class Mail:
 			# generate EDR location URL
 			edr_location_link = ""
 			if app_config["datto_edr_integration_location_id"] != None and app_config["datto_edr_integration_location_id"] != "" and app_config["tenant_domain"] != None and app_config["tenant_domain"] != "":
-				edr_location_link = "<p>EDR Client Location: <a href=\"https://" + tenant_domain + "/organizations/locations/" + app_config["datto_edr_integration_location_id"] + "\">https://" + tenant_domain + "/organizations/locations/" + app_config["datto_edr_integration_location_id"] + "</a></p>"
+				edr_location_link = "<p>EDR Client Location: <a href=\"https://" + app_config["datto_edr_integration_tenant_domain"] + "/organizations/locations/" + app_config["datto_edr_integration_location_id"] + "\">https://" + app_config["datto_edr_integration_tenant_domain"] + "/organizations/locations/" + app_config["datto_edr_integration_location_id"] + "</a></p>"
 
 			html_body = f"""\
 			<html>
@@ -551,7 +551,7 @@ class Mail:
 			message = MIMEText(html_body, "html")
 
 			try:
-				connection = SMTP(app_config["notifications_smtp_server"])
+				connection = smtplib.SMTP(app_config["notifications_smtp_server"])
 				connection.login(app_config["notifications_smtp_username"], app_config["notifications_smtp_password"])
 
 				try:
