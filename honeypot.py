@@ -522,7 +522,7 @@ class Mail:
 		future_time = current_time + datetime.timedelta(minutes=10)
 		unix_timestamp = future_time.timestamp()
 
-		if app_config["notifications_mail_enabled"] == 1 & last_mail_alert > unix_timestamp:
+		if app_config["notifications_mail_enabled"] == 1 and last_mail_alert > unix_timestamp:
 			message = EmailMessage()
 			message["Subject"] = "TRIPWIRE triggered at " + app_config["general_client"]
 			message["From"] = app_config["notifications_sender_email"]
@@ -531,7 +531,7 @@ class Mail:
 
 			# generate EDR location URL
 			edr_location_link = ""
-			if app_config["datto_edr_integration_location_id"] != None & app_config["datto_edr_integration_location_id"] != "" & app_config["tenant_domain"] != None & app_config["tenant_domain"] != "":
+			if app_config["datto_edr_integration_location_id"] != None and app_config["datto_edr_integration_location_id"] != "" and app_config["tenant_domain"] != None and app_config["tenant_domain"] != "":
 				edr_location_link = "<p>EDR Client Location: <a href=\"https://" + tenant_domain + "/organizations/locations/" + app_config["datto_edr_integration_location_id"] + "\">https://" + tenant_domain + "/organizations/locations/" + app_config["datto_edr_integration_location_id"] + "</a></p>"
 
 			html_body = f"""\
