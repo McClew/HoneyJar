@@ -566,8 +566,8 @@ class Mail:
 				print(Fore.BLUE + "[INF]" + Style.RESET_ALL + " Mail Notification sent: (" + app_config["notifications_sender_email"] + ", " + app_config["notifications_recipient_email"] + ")")
 			finally:
 				connection.quit()
-		except:
-			print(Fore.RED + "[ERR]" + Style.RESET_ALL + " Mail failed to send." + log_message)
+		except Exception as error:
+			print(Fore.RED + "[ERR]" + Style.RESET_ALL + " Mail failed to send: " + error)
 
 class TcpHoneypot:
 	def __init__(self):
