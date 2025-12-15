@@ -556,8 +556,18 @@ class Mail:
 		message = MIMEText(html_body, "html")
 
 		try:
-			connection = smtplib.SMTP(app_config["notifications_smtp_server"])
-			connection.login(app_config["notifications_smtp_username"], app_config["notifications_smtp_password"])
+			connection = smtplib.SMTP(
+				host = app_config["notifications_smtp_server"],
+				port = int(app_config["notifications_smtp_port"]),
+				timeout = 5
+			)
+
+			#connection.starttls()
+
+			connection.login(
+				app_config["notifications_smtp_username"],
+				app_config["notifications_smtp_password"]
+			)
 
 			try:
 				connection.sendmail(app_config["notifications_sender_email"], app_config["notifications_recipient_email"], message.as_string())
