@@ -143,8 +143,8 @@ class Config:
 	@staticmethod
 	def load_config():
 		print(Fore.BLUE + "[INF]" + Style.BRIGHT + " Loading configuration..." + Style.RESET_ALL)
-
-		config = configparser.ConfigParser()
+		
+		config = configparser.ConfigParser(interpolation=None)
 
 		# Load configuration file
 		if not config.read(CONFIG_FILE):
