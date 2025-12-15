@@ -559,7 +559,7 @@ class Mail:
 			connection = smtplib.SMTP(
 				host = app_config["notifications_smtp_server"],
 				port = int(app_config["notifications_smtp_port"]),
-				timeout = 5
+				timeout = 15
 			)
 
 			#connection.starttls()
