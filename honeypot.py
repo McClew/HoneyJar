@@ -143,7 +143,7 @@ class Config:
 	@staticmethod
 	def load_config():
 		print(Fore.BLUE + "[INF]" + Style.BRIGHT + " Loading configuration..." + Style.RESET_ALL)
-		
+
 		config = configparser.ConfigParser(interpolation=None)
 
 		# Load configuration file
@@ -547,6 +547,7 @@ class Mail:
 				connection.login(app_config["notifications_smtp_username"], app_config["notifications_smtp_password"])
 				try:
 					connection.sendmail(app_config["notifications_sender_email"], app_config["notifications_recipient_email"], message.as_string())
+					print(Fore.BLUE + "[INF]" + Style.RESET_ALL + " Mail Notification sent: (" + app_config["notifications_sender_email"] + ", " + app_config["notifications_recipient_email"] + ")")
 				finally:
 					connection.quit()
 			except:
@@ -596,9 +597,10 @@ class TcpHoneypot:
 		# Log the event
 		if honeypot_logger:
 			honeypot_logger.info(log_message + captured_data_log, extra={'target_port': target_port, 'source_ip': attacker_ip})
+			print(Fore.YELLOW + "[HIT]" + Style.RESET_ALL + " Event occurred: " + log_message + captured_data_log)
 		else:
-			print(Fore.RED + "[ERR]" + Style.RESET_ALL + log_message + captured_data_log)
-		
+			print(Fore.RED + "[ERR] " + Style.RESET_ALL + log_message + captured_data_log)
+
 		# Send email notification
 		Mail.send_mail_notification(log_message + captured_data_log)
 
@@ -626,6 +628,7 @@ class UdpHoneypot(asyncio.DatagramProtocol):
 
 		if honeypot_logger:
 			honeypot_logger.info(log_message + captured_data_log)
+			print(Fore.YELLOW + "[HIT]" + Style.RESET_ALL + " Event occurred: " + log_message + captured_data_log)
 		else:
 			print(Fore.RED + "[LOG_ERR]" + Style.RESET_ALL + log_message + captured_data_log)
 
