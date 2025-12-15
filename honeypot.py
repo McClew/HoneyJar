@@ -518,51 +518,56 @@ class Mail:
 		global app_config
 		global last_mail_alert
 
-		current_time = datetime.datetime.now(datetime.UTC) 
-		future_time = current_time + datetime.timedelta(minutes=10)
-		unix_timestamp = future_time.timestamp()
+		if app_config["notifications_mail_enabled"] != "1":
+			return
 
-		if app_config["notifications_mail_enabled"] == 1 and last_mail_alert > unix_timestamp:
-			message = EmailMessage()
-			message["Subject"] = "TRIPWIRE triggered at " + app_config["general_client"]
-			message["From"] = app_config["notifications_sender_email"]
-			message["To"] = app_config["notifications_recipient_email"]
+		cooldown_seconds = 10 * 60
+		cooldown_target = last_mail_alert + cooldown_seconds
+		current_unix_timestamp = datetime.datetime.now(datetime.UTC).timestamp()
+
+		if current_unix_timestamp <= cooldown_target:
+			return
+
+		message = EmailMessage()
+		message["Subject"] = "TRIPWIRE triggered at " + app_config["general_client"]
+		message["From"] = app_config["notifications_sender_email"]
+		message["To"] = app_config["notifications_recipient_email"]
 
 
-			# generate EDR location URL
-			edr_location_link = ""
-			if app_config["datto_edr_integration_location_id"] != None and app_config["datto_edr_integration_location_id"] != "" and app_config["tenant_domain"] != None and app_config["tenant_domain"] != "":
-				edr_location_link = "<p>EDR Client Location: <a href=\"https://" + app_config["datto_edr_integration_tenant_domain"] + "/organizations/locations/" + app_config["datto_edr_integration_location_id"] + "\">https://" + app_config["datto_edr_integration_tenant_domain"] + "/organizations/locations/" + app_config["datto_edr_integration_location_id"] + "</a></p>"
+		# generate EDR location URL
+		edr_location_link = ""
+		if app_config["datto_edr_integration_location_id"] != None and app_config["datto_edr_integration_location_id"] != "" and app_config["tenant_domain"] != None and app_config["tenant_domain"] != "":
+			edr_location_link = "<p>EDR Client Location: <a href=\"https://" + app_config["datto_edr_integration_tenant_domain"] + "/organizations/locations/" + app_config["datto_edr_integration_location_id"] + "\">https://" + app_config["datto_edr_integration_tenant_domain"] + "/organizations/locations/" + app_config["datto_edr_integration_location_id"] + "</a></p>"
 
-			html_body = f"""\
-			<html>
-				<head></head>
-				<body>
-					<p><strong>TRIPWIRE was triggered for {app_config["general_client"]}</strong></p>
-					<br>
-					<p><strong>Log:</strong></p>
-					<p>{log_message}</p>
-					<br>
-					{edr_location_link}
-				</body>
-			</html>
-			"""
+		html_body = f"""\
+		<html>
+			<head></head>
+			<body>
+				<p><strong>TRIPWIRE was triggered for {app_config["general_client"]}</strong></p>
+				<br>
+				<p><strong>Log:</strong></p>
+				<p>{log_message}</p>
+				<br>
+				{edr_location_link}
+			</body>
+		</html>
+		"""
 
-			message = MIMEText(html_body, "html")
+		message = MIMEText(html_body, "html")
+
+		try:
+			connection = smtplib.SMTP(app_config["notifications_smtp_server"])
+			connection.login(app_config["notifications_smtp_username"], app_config["notifications_smtp_password"])
 
 			try:
-				connection = smtplib.SMTP(app_config["notifications_smtp_server"])
-				connection.login(app_config["notifications_smtp_username"], app_config["notifications_smtp_password"])
+				connection.sendmail(app_config["notifications_sender_email"], app_config["notifications_recipient_email"], message.as_string())
 
-				try:
-					connection.sendmail(app_config["notifications_sender_email"], app_config["notifications_recipient_email"], message.as_string())
-
-					last_mail_alert = datetime.datetime.now(datetime.UTC).timestamp()
-					print(Fore.BLUE + "[INF]" + Style.RESET_ALL + " Mail Notification sent: (" + app_config["notifications_sender_email"] + ", " + app_config["notifications_recipient_email"] + ")")
-				finally:
-					connection.quit()
-			except:
-				print(Fore.RED + "[ERR]" + Style.RESET_ALL + " Mail failed to send." + captured_data_log)
+				last_mail_alert = datetime.datetime.now(datetime.UTC).timestamp()
+				print(Fore.BLUE + "[INF]" + Style.RESET_ALL + " Mail Notification sent: (" + app_config["notifications_sender_email"] + ", " + app_config["notifications_recipient_email"] + ")")
+			finally:
+				connection.quit()
+		except:
+			print(Fore.RED + "[ERR]" + Style.RESET_ALL + " Mail failed to send." + captured_data_log)
 
 class TcpHoneypot:
 	def __init__(self):
