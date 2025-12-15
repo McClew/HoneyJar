@@ -523,10 +523,7 @@ class Mail:
 
 			# generate EDR location URL
 			edr_location_link = ""
-			if app_config["datto_edr_integration_location_id"] != None 
-				& app_config["datto_edr_integration_location_id"] != ""
-				& app_config["tenant_domain"] != None
-				& app_config["tenant_domain"] != "":
+			if app_config["datto_edr_integration_location_id"] != None & app_config["datto_edr_integration_location_id"] != "" & app_config["tenant_domain"] != None & app_config["tenant_domain"] != "":
 				edr_location_link = "<p>EDR Client Location: <a href=\"https://" + tenant_domain + "/organizations/locations/" + app_config["datto_edr_integration_location_id"] + "\">https://" + tenant_domain + "/organizations/locations/" + app_config["datto_edr_integration_location_id"] + "</a></p>"
 
 			html_body = f"""\
