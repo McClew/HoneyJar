@@ -1,3 +1,4 @@
+# Logs stored under name: "HoneypotLogger"
 # Honeypot Listen Pairs Format: <PORT>:<SERVICE>:<PROTOCOL>; <PORT>:<SERVICE>:<PROTOCOL>; ..
 
 [General]
