@@ -2,7 +2,7 @@
 # Honeypot Listen Pairs Format: <PORT>:<SERVICE>:<PROTOCOL>; <PORT>:<SERVICE>:<PROTOCOL>; ..
 
 [General]
-client = ""
+client = 
 hostname = TRIPWIRE
 
 [Syslog]
