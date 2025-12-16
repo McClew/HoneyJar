@@ -553,7 +553,7 @@ class Mail:
 		</html>
 		"""
 
-		message = MIMEText(html_body, "html")
+		message.setContent(html_body, subtype="html")
 
 		try:
 			connection = smtplib.SMTP_SSL(
