@@ -556,16 +556,15 @@ class Mail:
 		message = MIMEText(html_body, "html")
 
 		try:
-			connection = smtplib.SMTP(
+			connection = smtplib.SMTP_SSL(
 				host = app_config["notifications_smtp_server"],
 				port = int(app_config["notifications_smtp_port"]),
 				timeout = int(app_config["notifications_mail_timeout"])
 			)
 
-			connection.starttls()
-
 			connection.login(
-				app_config["notifications_smtp_"]
+				app_config["notifications_smtp_username"],
+				app_config["notifications_smtp_password"]
 			)
 
 			try:
