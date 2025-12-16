@@ -521,7 +521,7 @@ class Mail:
 		if app_config["notifications_mail_enabled"] != "1":
 			return
 
-		cooldown_seconds = app_config["notifications_cooldown_period"]
+		cooldown_seconds = int(app_config["notifications_cooldown_period"])
 		cooldown_target = last_mail_alert + cooldown_seconds
 		current_unix_timestamp = datetime.datetime.now(datetime.UTC).timestamp()
 
@@ -559,7 +559,7 @@ class Mail:
 			connection = smtplib.SMTP(
 				host = app_config["notifications_smtp_server"],
 				port = int(app_config["notifications_smtp_port"]),
-				timeout = app_config["notifications_mail_timeout"]
+				timeout = int(app_config["notifications_mail_timeout"])
 			)
 
 			connection.starttls()
