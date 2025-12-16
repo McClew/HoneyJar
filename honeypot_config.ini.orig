@@ -19,12 +19,12 @@ cooldown_period = 300
 
 smtp_server = 127.0.0.1
 smtp_port = 587
-smtp_username = ""
-smtp_password = ""
+smtp_username = 
+smtp_password = 
 
-sender_email = ""
-recipient_email = ""
+sender_email = 
+recipient_email = 
 
 [EDR]
-tenant_domain = "rmm21a50002.eu.infocyte.com"
-location_id = ""
+tenant_domain = rmm21a50002.eu.infocyte.com
+location_id = 
