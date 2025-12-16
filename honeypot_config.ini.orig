@@ -14,10 +14,14 @@ listen_pairs = 21:FTP_ProFTPD_Linux:TCP; 22:SSH_Ubuntu_Current:TCP; 80:HTTP_Ngin
 
 [Notifications]
 mail_enabled = 0
+mail_timeout = 5
+cooldown_period = 300
+
 smtp_server = 127.0.0.1
 smtp_port = 587
 smtp_username = ""
 smtp_password = ""
+
 sender_email = ""
 recipient_email = ""
 

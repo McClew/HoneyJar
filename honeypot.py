@@ -18,7 +18,7 @@ CONFIG_REQUIRED_SECTIONS = {
 	"General": ["client", "hostname"],
 	"Syslog": ["host", "port", "path"],
 	"Honeypot": ["listen_pairs"],
-	"Notifications": ["mail_enabled", "smtp_server", "smtp_port", "smtp_username", "smtp_password", "sender_email", "recipient_email"],
+	"Notifications": ["mail_enabled", "mail_timeout", "cooldown_period", "smtp_server", "smtp_port", "smtp_username", "smtp_password", "sender_email", "recipient_email"],
 	"EDR": ["tenant_domain", "location_id"]
 }
 
@@ -521,7 +521,7 @@ class Mail:
 		if app_config["notifications_mail_enabled"] != "1":
 			return
 
-		cooldown_seconds = 10 * 60
+		cooldown_seconds = app_config["notifications_cooldown_period"]
 		cooldown_target = last_mail_alert + cooldown_seconds
 		current_unix_timestamp = datetime.datetime.now(datetime.UTC).timestamp()
 
@@ -559,14 +559,13 @@ class Mail:
 			connection = smtplib.SMTP(
 				host = app_config["notifications_smtp_server"],
 				port = int(app_config["notifications_smtp_port"]),
-				timeout = 15
+				timeout = app_config["notifications_mail_timeout"]
 			)
 
-			#connection.starttls()
+			connection.starttls()
 
 			connection.login(
-				app_config["notifications_smtp_username"],
-				app_config["notifications_smtp_password"]
+				app_config["notifications_smtp_"]
 			)
 
 			try:
