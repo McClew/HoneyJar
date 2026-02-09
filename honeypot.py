@@ -15,7 +15,7 @@ from email.mime.text import MIMEText
 
 CONFIG_FILE = "honeypot_config.ini"
 CONFIG_REQUIRED_SECTIONS = {
-	"General": ["client", "hostname"],
+	"General": ["client", "hostname", "allowed_ips"],
 	"Syslog": ["host", "port", "path"],
 	"Honeypot": ["listen_pairs"],
 	"Notifications": ["mail_enabled", "mail_timeout", "cooldown_period", "smtp_server", "smtp_port", "smtp_username", "smtp_password", "sender_email", "recipient_email"],
@@ -210,6 +210,12 @@ class Config:
 							pairs.append((port, service_name, protocol))
 
 						final_config[config_key_flat] = pairs
+					
+					# Custom handling for allowed_ips
+					elif key == 'allowed_ips':
+						# Parse comma-separated IPs into a list, stripping whitespace
+						ips = [ip.strip() for ip in value.split(',') if ip.strip()]
+						final_config[config_key_flat] = ips
 
 					else:
 						final_config[config_key_flat] = value
@@ -247,6 +253,9 @@ class Config:
 				if key == 'listen_pairs':
 					current_value = "; ".join([f"{p}:{s}:{pr}" for p, s, pr in app_config[config_key]])
 					print(f"{section} {key} (Format: PORT:SERVICE:PROTOCOL;...): {current_value}")
+				elif key == 'allowed_ips':
+					current_value = ", ".join(app_config[config_key])
+					print(f"{section} {key} (Format: IP1, IP2, ...): {current_value}")
 				else:
 					current_value = app_config[config_key]
 					print(f"{section} {key}: {current_value}")
@@ -254,6 +263,8 @@ class Config:
 				if input("Modify value? (y/n): ").lower() == "y":
 					if key == 'listen_pairs':
 						new_value = input(f"{section} {key} [ENTER NEW STRING]: ")
+					elif key == 'allowed_ips':
+						new_value = input(f"{section} {key} [ENTER IP LIST]: ")
 					else:
 						new_value = input(f"{section} {key}: ")
 						
@@ -293,6 +304,12 @@ class Config:
 					final_value = "; ".join([f"{p}:{s}:{pr}" for p, s, pr in value])
 				else:
 					final_value = str(value)
+			# Custom handling for allowed_ips during saving
+			elif name == 'allowed_ips':
+				if isinstance(value, list):
+					final_value = ", ".join(value)
+				else:
+					final_value = str(value)
 			else:
 				final_value = str(value)
 
@@ -311,6 +328,93 @@ class Config:
 			return True
 		except IOError:
 			return False
+
+class Persistence:
+	def __init__(self):
+		pass
+
+	@staticmethod
+	def install_systemd_service():
+		Utility.clear_cli()
+		print(Fore.YELLOW + "+----------------------------+" + Style.RESET_ALL)
+		print(Fore.YELLOW + "|      SERVICE INSTALLER     |" + Style.RESET_ALL)
+		print(Fore.YELLOW + "+----------------------------+" + Style.RESET_ALL)
+		
+		# Platform check
+		if sys.platform != "linux" and sys.platform != "linux2":
+			print(Fore.RED + "[ERR]" + Style.RESET_ALL + " Persistence is only available on Linux systems.")
+			input("\nPress Enter to return...")
+			return
+
+		# Privileges check
+		if os.getuid() != 0:
+			print(Fore.RED + "[ERR]" + Style.RESET_ALL + " Root privileges required to install systemd services.")
+			input("\nPress Enter to return...")
+			return
+
+		script_path = os.path.abspath(__file__)
+		script_dir = os.path.dirname(script_path)
+		python_path = sys.executable
+		service_name = "honeyjar"
+		service_file_path = f"/etc/systemd/system/{service_name}.service"
+		
+		print(Fore.BLUE + "[INF]" + Style.BRIGHT + f" Detected Script Path: {script_path}" + Style.RESET_ALL)
+		print(Fore.BLUE + "[INF]" + Style.BRIGHT + f" Detected Python Path: {python_path}" + Style.RESET_ALL)
+		print("")
+
+		service_content = f"""[Unit]
+Description=HoneyJar Honeypot Service
+After=network.target syslog.service
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory={script_dir}
+ExecStart={python_path} {script_path} --headless
+Restart=always
+RestartSec=5
+StandardOutput=syslog
+StandardError=syslog
+SyslogIdentifier={service_name}
+
+[Install]
+WantedBy=multi-user.target
+"""
+		
+		print(Style.DIM + service_content + Style.RESET_ALL)
+		print("-" * 30)
+
+		if input("Install this service? (y/n): ").lower() != 'y':
+			print(Fore.BLUE + "[INF]" + Style.RESET_ALL + " Installation cancelled.")
+			time.sleep(1)
+			return
+
+		try:
+			print(Fore.BLUE + "\n[INF]" + Style.BRIGHT + " Creating service file..." + Style.RESET_ALL)
+			with open(service_file_path, "w") as f:
+				f.write(service_content)
+				
+			print(Fore.GREEN + "[SUC]" + Style.RESET_ALL + f" Service file created at {service_file_path}")
+			
+			# Reload daemon
+			print(Fore.BLUE + "[INF]" + Style.BRIGHT + " Reloading systemd daemon..." + Style.RESET_ALL)
+			subprocess.run(["systemctl", "daemon-reload"], check=True)
+			
+			# Enable service
+			print(Fore.BLUE + "[INF]" + Style.BRIGHT + " Enabling service..." + Style.RESET_ALL)
+			subprocess.run(["systemctl", "enable", service_name], check=True)
+			print(Fore.GREEN + "[SUC]" + Style.RESET_ALL + f" Service '{service_name}' enabled (autostart on boot).")
+			
+			print("-" * 30)
+			print(Fore.GREEN + Style.BRIGHT + "INSTALLATION COMPLETE" + Style.RESET_ALL)
+			print(Fore.BLUE + "[INF]" + Style.RESET_ALL + f" Start the service: systemctl start {service_name}")
+			print(Fore.BLUE + "[INF]" + Style.RESET_ALL + f" Check status:      systemctl status {service_name}")
+			print(Fore.BLUE + "[INF]" + Style.RESET_ALL + f" View logs:         journalctl -u {service_name} -f")
+			
+		except Exception as error:
+			print(Fore.RED + "[ERR]" + Style.RESET_ALL + f" Failed to install service: {error}")
+			
+		input("\nPress Enter to return to main menu...")
 
 class Banner:
 	def __init__(self):
@@ -587,6 +691,15 @@ class TcpHoneypot:
 		attacker_ip, attacker_port = address[0], address[1]
 		target_port = writer.get_extra_info('sockname')[1]
 		
+		# Check Allowlist
+		if attacker_ip in app_config.get('general_allowed_ips', []):
+			if honeypot_logger:
+				honeypot_logger.debug(f"Connection ignored from allowed IP. IP={attacker_ip} Port={target_port}")
+			
+			writer.close()
+			await writer.wait_closed()
+			return
+		
 		# Determine which service name was used to launch this listener
 		banner_data = None
 		for _, service_name, protocol in app_config['honeypot_listen_pairs']:
@@ -643,6 +756,12 @@ class UdpHoneypot(asyncio.DatagramProtocol):
 	def datagram_received(self, data, addr):
 		attacker_ip, attacker_port = addr
 
+		# Check Allowlist
+		if attacker_ip in app_config.get('general_allowed_ips', []):
+			if honeypot_logger:
+				honeypot_logger.debug(f"Datagram ignored from allowed IP. IP={attacker_ip} Port={self.target_port}")
+			return
+
 		log_message = f"UDP datagram received. TargetPort={self.target_port} SourceIP={attacker_ip}"
 
 		try:
@@ -694,7 +813,7 @@ async def start_multiple_listeners(listen_pairs):
 	# Keep the main loop running until interrupted
 	await asyncio.gather(*tasks)
 
-def start_honeypot():
+def start_honeypot(headless=False):
 	global app_config	
 	listen_pairs = app_config.get('honeypot_listen_pairs')
 	
@@ -717,8 +836,9 @@ def start_honeypot():
 	except Exception as error:
 		print(Fore.RED + "[ERR]" + Style.RESET_ALL + f" An unhandled error occurred during runtime: {error}")
 
-	input("Press any key to return to main menu:")
-	Utility.clear_cli()
+	if not headless:
+		input("Press any key to return to main menu:")
+		Utility.clear_cli()
 	return
 
 def startup():
@@ -750,6 +870,7 @@ def main_menu():
 		print("2. Edit Configuration")
 		print("3. Check Syslog Config")
 		print("4. View Services")
+		print("5. Install Persistence (Systemd)")
 		print("-" * 30)
 		print("0. Exit Application")
 		print("-" * 30)
@@ -764,6 +885,8 @@ def main_menu():
 			Syslog.check_syslog_config()
 		elif choice == "4":
 			Banner.banner_menu()
+		elif choice == "5":
+			Persistence.install_systemd_service()
 		elif choice == "0":
 			print(Fore.BLUE + "[INF]" + Style.BRIGHT + " Shutting down." + Style.RESET_ALL)
 			break
@@ -772,6 +895,12 @@ def main_menu():
 			print(Fore.RED + "[ERR]" + Style.RESET_ALL + " Invalid choice. Please select 1, 2, or 3." + Style.RESET_ALL)
 
 if __name__ == "__main__":
-	Utility.clear_cli()
-	startup()
-	main_menu()
+	if len(sys.argv) > 1 and sys.argv[1] == "--headless":
+		# Headless / Service Mode
+		app_config = Config.load_config()
+		start_honeypot(headless=True)
+	else:
+		# Interactive Mode
+		Utility.clear_cli()
+		startup()
+		main_menu()

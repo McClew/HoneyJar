@@ -4,6 +4,7 @@
 [General]
 client = 
 hostname = TRIPWIRE
+allowed_ips = 
 
 [Syslog]
 host = 127.0.0.1
